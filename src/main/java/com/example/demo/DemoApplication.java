@@ -32,14 +32,14 @@ public class DemoApplication {
     private static final String TGZ = "tgz";
     private static final String ZIP = "zip";
 
-    //@Bean
+    @Bean
     ArchiveRunner tgzArchiveRunner(
             @Tgz ArchiveExtractor archiveExtractor,
             @Value(FILE_PREFIX + TGZ) Resource resource) {
         return new ArchiveRunner(archiveExtractor, resource);
     }
 
-    @Bean
+    //    @Bean
     ArchiveRunner zipArchiveRunner(
             @Zip ArchiveExtractor archiveExtractor,
             @Value(FILE_PREFIX + ZIP) Resource resource) {
@@ -66,14 +66,14 @@ class ArchiveRunner implements ApplicationRunner {
             Assert.isTrue(this.isZip(path) ||
                     this.isTarGz(path), "Unsupported archive format");
 
-            log.info("extracting from {}", path);
-            this.archiveExtractor.extract(in, (Consumer<ZipFile>) zipFile -> {
-                if (this.isValidMarkdownFile(zipFile)) {
+            this.log.info("extracting from {}", path);
+            this.archiveExtractor.extract(in, (Consumer<ArchiveFile>) archiveFile -> {
+                if (this.isValidMarkdownFile(archiveFile)) {
                     try {
-                        this.process(zipFile);
+                        this.process(archiveFile);
                     } //
                     catch (Exception e) {
-                        log.warn("failed to process {}", zipFile.fileName(), e);
+                        log.warn("failed to process {}", archiveFile.fileName(), e);
                     }
                 }
             });
@@ -101,7 +101,7 @@ class ArchiveRunner implements ApplicationRunner {
         return header[0] == (byte) 0x1f && header[1] == (byte) 0x8b;
     }
 
-    private boolean isValidMarkdownFile(ZipFile file) {
+    private boolean isValidMarkdownFile(ArchiveFile file) {
         return this.guessMimeType(file.fileName())
                 .isCompatibleWith(MediaType.TEXT_MARKDOWN);
     }
@@ -109,18 +109,18 @@ class ArchiveRunner implements ApplicationRunner {
     private MediaType guessMimeType(String name) {
         var guessContentTypeFromName =
                 java.net.URLConnection.guessContentTypeFromName(name);
-        return StringUtils.hasText(guessContentTypeFromName) ? MediaType.parseMediaType(guessContentTypeFromName) :
+        return StringUtils.hasText(guessContentTypeFromName) ?
+                MediaType.parseMediaType(guessContentTypeFromName) :
                 MediaType.APPLICATION_OCTET_STREAM;
     }
 
-    private void process(ZipFile zipFile) {
-        log.info("========================================");
-        log.info("file = {}", zipFile.fileName() + ":" + zipFile.content().length);
-
-        var content = new String(zipFile.content(), Charset.defaultCharset());
-
+    private void process(ArchiveFile archiveFile) {
+        this.log.info("========================================");
+        this.log.info("file = {}", archiveFile.fileName() + ":" +
+                archiveFile.content().length);
+        var content = new String(archiveFile.content(), Charset.defaultCharset());
         var frontMatter = FrontMatter.parse(content);
-        frontMatter.forEach((k, v) -> log.info("{}={}", k, v));
+        frontMatter.forEach((k, v) ->  this.log.info("{}={}", k, v));
     }
 }
 

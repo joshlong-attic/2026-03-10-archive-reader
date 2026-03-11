@@ -14,6 +14,7 @@ import java.io.PushbackInputStream;
 import java.lang.annotation.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -35,7 +36,7 @@ import java.util.zip.ZipInputStream;
 @interface Tgz {
 }
 
-record ZipFile(String fileName, byte[] content) {
+record ArchiveFile(String fileName, byte[] content) {
 }
 
 @Zip
@@ -45,7 +46,7 @@ class ZipArchiveExtractor
         implements ArchiveExtractor {
 
     @Override
-    public void extract(InputStream stream, Consumer<ZipFile> zipFileConsumer) throws Exception {
+    public void extract(InputStream stream, Consumer<ArchiveFile> zipFileConsumer) throws Exception {
 
         stream = this.validateMagicBytes(stream, new byte[]{0x50, 0x4B, 0x03, 0x04});
 
@@ -75,13 +76,15 @@ class ZipArchiveExtractor
                         throw new SecurityException("Archive exceeds max uncompressed size");
 
                     if (isNonReadableText(bytes))
-                        throw new SecurityException("Non-text content in: " + entry.getName());
+                        continue;
 
-                    zipFileConsumer.accept(new ZipFile(entry.getName(), bytes));
+                    zipFileConsumer.accept(new ArchiveFile(entry.getName(), bytes));
                 }
             }
         }
     }
+
+
 }
 
 @Tgz
@@ -89,9 +92,8 @@ class ZipArchiveExtractor
 class TgzArchiveExtractor extends AbstractArchiveExtractor
         implements ArchiveExtractor {
 
-
     @Override
-    public void extract(InputStream stream, Consumer<ZipFile> zipFileConsumer) throws Exception {
+    public void extract(InputStream stream, Consumer<ArchiveFile> zipFileConsumer) throws Exception {
 
         stream = this.validateMagicBytes(stream, new byte[]{(byte) 0x1f, (byte) 0x8b});
 
@@ -121,9 +123,9 @@ class TgzArchiveExtractor extends AbstractArchiveExtractor
                         throw new SecurityException("Archive exceeds max uncompressed size");
 
                     if (isNonReadableText(bytes))
-                        throw new SecurityException("Non-text content in: " + entry.getName());
+                        continue;
 
-                    zipFileConsumer.accept(new ZipFile(entry.getName(), bytes));
+                    zipFileConsumer.accept(new ArchiveFile(entry.getName(), bytes));
                 }
             }
         }
@@ -146,14 +148,13 @@ abstract class AbstractArchiveExtractor implements ArchiveExtractor {
             throw new IllegalArgumentException("Invalid archive format");
         pis.unread(header); // put the bytes back so the downstream reader sees them
         return pis;
-
     }
 
-
     protected boolean isUnsafeEntry(String name, boolean isDirectory) {
-        return isDirectory
-                || !name.endsWith(".md")
-                || name.contains("..");
+        if (isDirectory || name.contains(".."))
+            throw new SecurityException("Unsafe entry: " + name);
+        return !name.toLowerCase(Locale.ROOT)
+                .endsWith(".md");
     }
 
     protected boolean isNonReadableText(byte[] bytes) {
@@ -167,6 +168,6 @@ abstract class AbstractArchiveExtractor implements ArchiveExtractor {
 
 interface ArchiveExtractor {
 
-    void extract(InputStream stream, Consumer<ZipFile> zipFileConsumer) throws Exception;
+    void extract(InputStream stream, Consumer<ArchiveFile> zipFileConsumer) throws Exception;
 
 }
