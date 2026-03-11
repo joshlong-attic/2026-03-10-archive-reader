@@ -1,5 +1,9 @@
 package com.example.demo;
 
+import com.example.demo.archives.ArchiveExtractor;
+import com.example.demo.archives.ArchiveFile;
+import com.example.demo.archives.Tgz;
+import com.example.demo.archives.Zip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +23,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.function.Consumer;
 
 @SpringBootApplication
 public class DemoApplication {
@@ -39,7 +42,7 @@ public class DemoApplication {
         return new ArchiveRunner(archiveExtractor, resource);
     }
 
-    //    @Bean
+    //   @Bean
     ArchiveRunner zipArchiveRunner(
             @Zip ArchiveExtractor archiveExtractor,
             @Value(FILE_PREFIX + ZIP) Resource resource) {
@@ -67,7 +70,7 @@ class ArchiveRunner implements ApplicationRunner {
                     this.isTarGz(path), "Unsupported archive format");
 
             this.log.info("extracting from {}", path);
-            this.archiveExtractor.extract(in, (Consumer<ArchiveFile>) archiveFile -> {
+            this.archiveExtractor.extract(in, archiveFile -> {
                 if (this.isValidMarkdownFile(archiveFile)) {
                     try {
                         this.process(archiveFile);
@@ -120,7 +123,7 @@ class ArchiveRunner implements ApplicationRunner {
                 archiveFile.content().length);
         var content = new String(archiveFile.content(), Charset.defaultCharset());
         var frontMatter = FrontMatter.parse(content);
-        frontMatter.forEach((k, v) ->  this.log.info("{}={}", k, v));
+        frontMatter.forEach((k, v) -> this.log.info("{}={}", k, v));
     }
 }
 

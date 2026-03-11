@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-./mvnw -DskipTests -Pnative native:compile
+./mvnw -DskipTests -Pnative native:compile && ./target/demo
